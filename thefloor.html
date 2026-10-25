@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Anatomiczne The Floor - Teleturniej</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- React & ReactDOM CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <!-- Babel Compiler for JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&family=Space+Grotesk:wght@500;700&display=swap');
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background-color: #0b0f19;
+      color: #f3f4f6;
+      user-select: none;
+      overflow-x: hidden;
+    }
+
+    .font-mono-clock {
+      font-family: 'Space Grotesk', monospace;
+    }
+
+    /* Glow Effects */
+    .glow-active-a {
+      box-shadow: 0 0 35px rgba(59, 130, 246, 0.6);
+      border-color: #3b82f6 !important;
+    }
+    .glow-active-b {
+      box-shadow: 0 0 35px rgba(239, 68, 68, 0.6);
+      border-color: #ef4444 !important;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #111827;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #374151;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #4b5563;
+    }
+
+    .glass-card {
+      background: rgba(17, 24, 39, 0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+
+  <div id="root" class="flex-grow flex flex-col"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useCallback } = React;
+
+    // --- Web Audio Synth Helper (No external files required!) ---
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioContext();
+        }
+        if (this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      playDing() {
+        this.init();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1046.50, now); // C6
+        osc.frequency.exponentialRampToValueAtTime(2093.00, now + 0.3); // C7
+
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.5);
+      }
+
+      playBuzzer() {
+        this.init();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.linearRampToValueAtTime(100, now + 0.4);
+
+        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.4);
+      }
+
+      playTick() {
+        this.init();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(800, now);
+
+        gain.gain.setValueAtTime(0.05, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.05);
+      }
+
+      playSiren() {
+        this.init();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(300, now);
+        osc.frequency.linearRampToValueAtTime(800, now + 0.3);
+        osc.frequency.linearRampToValueAtTime(300, now + 0.6);
+        osc.frequency.linearRampToValueAtTime(800, now + 0.9);
+
+        gain.gain.setValueAtTime(0.5, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 1.2);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 1.2);
+      }
+    }
+
+    const soundFx = new SoundEngine();
+
+    // --- Domyślna Baza Pytań Anatomicznych ---
+    const DEFAULT_QUESTIONS = [
+      {
+        id: "1",
+        category: "Mózgowie & OUN",
+        pinNumber: "12",
+        questionText: "Wskazana struktura mędzymózgowia tworząca ściany komory trzeciej",
+        answerPl: "Wzgórze",
+        answerLat: "Thalamus",
+        imageUrl: "https://images.unsplash.com/photo-1559757175-5700dde675bc?auto=format&fit=crop&w=800&q=80"
+      },
+      {
+        id: "2",
+        category: "Kardiologia",
+        pinNumber: "04",
+        questionText: "Naczynie tętnicze odchodzące od opuszki aorty w lewej zatoczce aorty",
+        answerPl: "Tętnica wieńcowa lewa",
+        answerLat: "Arteria coronaria sinistra",
+        imageUrl: "https://images.unsplash.com/photo-1530026405186-ed1f139313f8?auto=format&fit=crop&w=800&q=80"
+      },
+      {
+        id: "3",
+        category: "Osteologia",
+        pinNumber: "A7",
+        questionText: "Można na nim wyczuć przyczep mięśnia pośladkowego średniego",
+        answerPl: "Krętarz większy kości udowej",
+        answerLat: "Trochanter major femoris",
+        imageUrl: "https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?auto=format&fit=crop&w=800&q=80"
+      },
+      {
+        id: "4",
+        category: "Układ Wydalniczy",
+        pinNumber: "09",
+        questionText: "Zewnętrzna warstwa miąższu nerki zawierająca ciałka nerkowe",
+        answerPl: "Kora nerki",
+        answerLat: "Cortex renalis",
+        imageUrl: "https://images.unsplash.com/photo-1579154204601-01588f351e67?auto=format&fit=crop&w=800&q=80"
+      },
+      {
+        id: "5",
+        category: "Mózgowie & OUN",
+        pinNumber: "03",
+        questionText: "Struktura tyłomózgowia odpowiedzialna za koordynację ruchową i równowagę",
+        answerPl: "Móżdżek",
+        answerLat: "Cerebellum",
+        imageUrl: "https://images.unsplash.com/photo-1559757148-5c350d0d3c56?auto=format&fit=crop&w=800&q=80"
+      }
+    ];
+
+    const BROADCAST_CHANNEL_NAME = 'anatomic_the_floor_sync';
+
+    function App() {
+      // Widoki: 'projector', 'host', 'player'
+      const [viewMode, setViewMode] = useState('projector');
+
+      // Stan Meczu / Gra
+      const [playerA, setPlayerA] = useState('Zawodnik A');
+      const [playerB, setPlayerB] = useState('Zawodnik B');
+      const [timeA, setTimeA] = useState(45.0);
+      const [timeB, setTimeB] = useState(45.0);
+      const [initialTime, setInitialTime] = useState(45);
+      
+      const [activePlayer, setActivePlayer] = useState('A'); // 'A' lub 'B'
+      const [isRunning, setIsRunning] = useState(false);
+      const [winner, setWinner] = useState(null); // 'A', 'B' lub null
+
+      // Baza Pytań
+      const [questions, setQuestions] = useState(() => {
+        const saved = localStorage.getItem('atf_questions');
+        return saved ? JSON.parse(saved) : DEFAULT_QUESTIONS;
+      });
+      const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+
+      // Statystyki / Wyniki
+      const [scoreA, setScoreA] = useState(0);
+      const [scoreB, setScoreB] = useState(0);
+
+      // Edycja pytań (Modal)
+      const [showQuestionManager, setShowQuestionManager] = useState(false);
+
+      // Synchronizacja miedzy kartami / urządzeniami przez BroadcastChannel
+      const channelRef = useRef(null);
+
+      useEffect(() => {
+        channelRef.current = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
+
+        channelRef.current.onmessage = (event) => {
+          const { type, payload } = event.data;
+          switch (type) {
+            case 'SYNC_STATE':
+              setPlayerA(payload.playerA);
+              setPlayerB(payload.playerB);
+              setTimeA(payload.timeA);
+              setTimeB(payload.timeB);
+              setActivePlayer(payload.activePlayer);
+              setIsRunning(payload.isRunning);
+              setWinner(payload.winner);
+              setCurrentQuestionIndex(payload.currentQuestionIndex);
+              setQuestions(payload.questions);
+              setScoreA(payload.scoreA);
+              setScoreB(payload.scoreB);
+              break;
+            case 'PLAY_SOUND':
+              if (payload.sound === 'ding') soundFx.playDing();
+              if (payload.sound === 'buzzer') soundFx.playBuzzer();
+              if (payload.sound === 'siren') soundFx.playSiren();
+              break;
+            default:
+              break;
+          }
+        };
+
+        return () => {
+          if (channelRef.current) channelRef.current.close();
+        };
+      }, []);
+
+      // Wysyłanie stanu do innych otwartych kart
+      const broadcastState = useCallback((newState) => {
+        if (channelRef.current) {
+          channelRef.current.postMessage({
+            type: 'SYNC_STATE',
+            payload: newState
+          });
+        }
+      }, []);
+
+      const broadcastSound = (soundName) => {
+        if (channelRef.current) {
+          channelRef.current.postMessage({
+            type: 'PLAY_SOUND',
+            payload: { sound: soundName }
+          });
+        }
+      };
+
+      // Zapis pytań do localStorage
+      useEffect(() => {
+        localStorage.setItem('atf_questions', JSON.stringify(questions));
+      }, [questions]);
+
+      // Pomocnicza funkcja do pobierania pełnego aktualnego stanu
+      const getCurrentState = useCallback(() => ({
+        playerA, playerB, timeA, timeB, activePlayer, isRunning, winner, currentQuestionIndex, questions, scoreA, scoreB
+      }), [playerA, playerB, timeA, timeB, activePlayer, isRunning, winner, currentQuestionIndex, questions, scoreA, scoreB]);
+
+      // --- ZEGAR I LOGIKA GRY ---
+      useEffect(() => {
+        let interval = null;
+
+        if (isRunning && !winner) {
+          interval = setInterval(() => {
+            if (activePlayer === 'A') {
+              setTimeA((prev) => {
+                const nextTime = Math.max(0, +(prev - 0.1).toFixed(1));
+                if (nextTime === 0) {
+                  setIsRunning(false);
+                  setWinner('B');
+                  soundFx.playSiren();
+                  broadcastSound('siren');
+                }
+                return nextTime;
+              });
+            } else {
+              setTimeB((prev) => {
+                const nextTime = Math.max(0, +(prev - 0.1).toFixed(1));
+                if (nextTime === 0) {
+                  setIsRunning(false);
+                  setWinner('A');
+                  soundFx.playSiren();
+                  broadcastSound('siren');
+                }
+                return nextTime;
+              });
+            }
+          }, 100);
+        }
+
+        return () => clearInterval(interval);
+      }, [isRunning, activePlayer, winner]);
+
+      // Synchronizacja po każdej zmianie stanu
+      useEffect(() => {
+        broadcastState(getCurrentState());
+      }, [timeA, timeB, isRunning, activePlayer, winner, currentQuestionIndex, questions, scoreA, scoreB, playerA, playerB]);
+
+      // AKCJE STEROWANIA
+      const handleToggleRun = () => {
+        soundFx.init();
+        setIsRunning(!isRunning);
+      };
+
+      const handleCorrect = () => {
+        if (!isRunning || winner) return;
+
+        soundFx.playDing();
+        broadcastSound('ding');
+
+        if (activePlayer === 'A') {
+          setScoreA(s => s + 1);
+          setActivePlayer('B');
+        } else {
+          setScoreB(s => s + 1);
+          setActivePlayer('A');
+        }
+
+        // Następne pytanie
+        setCurrentQuestionIndex((prev) => (prev + 1) % questions.length);
+      };
+
+      const handlePass = () => {
+        if (!isRunning || winner) return;
+
+        soundFx.playBuzzer();
+        broadcastSound('buzzer');
+
+        // Zmiana pytania bez zmiany aktywnego gracza
+        setCurrentQuestionIndex((prev) => (prev + 1) % questions.length);
+      };
+
+      const handleResetGame = () => {
+        setIsRunning(false);
+        setTimeA(initialTime);
+        setTimeB(initialTime);
+        setActivePlayer('A');
+        setWinner(null);
+        setScoreA(0);
+        setScoreB(0);
+        setCurrentQuestionIndex(0);
+      };
+
+      // Skróty Klawiszowe dla Arbitra
+      useEffect(() => {
+        const handleKeyDown = (e) => {
+          if (viewMode !== 'host') return;
+
+          if (e.code === 'Space' || e.code === 'Enter') {
+            e.preventDefault();
+            handleCorrect();
+          } else if (e.code === 'KeyP') {
+            e.preventDefault();
+            handlePass();
+          } else if (e.code === 'KeyS') {
+            e.preventDefault();
+            handleToggleRun();
+          }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+      }, [viewMode, isRunning, activePlayer, winner, questions]);
+
+      const currentQ = questions[currentQuestionIndex] || DEFAULT_QUESTIONS[0];
+
+      return (
+        <div className="flex-grow flex flex-col min-h-screen">
+          {/* HEADER / SYNC STATUS / PRZEŁĄCZNIK WIDOKÓW */}
+          <header className="bg-slate-900 border-b border-slate-800 px-4 py-3 flex flex-wrap justify-between items-center gap-4 sticky top-0 z-50">
+            <div className="flex items-center space-x-3">
+              <div className="bg-blue-600 text-white font-extrabold px-3 py-1 rounded-lg text-lg tracking-wider flex items-center gap-2 shadow-lg shadow-blue-500/20">
+                <i className="fa-solid fa-bone text-amber-300"></i>
+                THE FLOOR
+              </div>
+              <span className="text-slate-400 font-medium text-sm hidden md:inline">Edycja Anatomiczna</span>
+            </div>
+
+            {/* Wybór Trybu Ekranu */}
+            <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800">
+              <button
+                onClick={() => setViewMode('projector')}
+                className={`px-3 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition flex items-center gap-2 ${
+                  viewMode === 'projector' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <i className="fa-solid fa-tv"></i> Widok Główny
+              </button>
+              <button
+                onClick={() => setViewMode('host')}
+                className={`px-3 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition flex items-center gap-2 ${
+                  viewMode === 'host' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <i className="fa-solid fa-[#000] fa-user-ninja"></i> Panel Arbitra
+              </button>
+              <button
+                onClick={() => setViewMode('player')}
+                className={`px-3 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition flex items-center gap-2 ${
+                  viewMode === 'player' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <i className="fa-solid fa-tablet-screen-button"></i> Tablet Gracza
+              </button>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <span className="flex h-2.5 w-2.5 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+              </span>
+              <span className="text-xs text-slate-400 font-mono">SYNCHRONIZED</span>
+            </div>
+          </header>
+
+          {/* ZAWARTOSC SYSTEMU W ZALEZNOSCI OD WYBRANEGO WIDOKU */}
+          <main className="flex-grow flex flex-col p-4 md:p-6 max-w-7xl w-full mx-auto justify-between">
+            {viewMode === 'projector' && (
+              <ProjectorView
+                playerA={playerA}
+                playerB={playerB}
+                timeA={timeA}
+                timeB={timeB}
+                activePlayer={activePlayer}
+                isRunning={isRunning}
+                winner={winner}
+                currentQ={currentQ}
+                scoreA={scoreA}
+                scoreB={scoreB}
+              />
+            )}
+
+            {viewMode === 'host' && (
+              <HostView
+                playerA={playerA}
+                playerB={playerB}
+                setPlayerA={setPlayerA}
+                setPlayerB={setPlayerB}
+                timeA={timeA}
+                timeB={timeB}
+                activePlayer={activePlayer}
+                isRunning={isRunning}
+                winner={winner}
+                currentQ={currentQ}
+                scoreA={scoreA}
+                scoreB={scoreB}
+                initialTime={initialTime}
+                setInitialTime={setInitialTime}
+                handleToggleRun={handleToggleRun}
+                handleCorrect={handleCorrect}
+                handlePass={handlePass}
+                handleResetGame={handleResetGame}
+                setShowQuestionManager={setShowQuestionManager}
+                currentQuestionIndex={currentQuestionIndex}
+                totalQuestions={questions.length}
+              />
+            )}
+
+            {viewMode === 'player' && (
+              <PlayerView
+                playerA={playerA}
+                playerB={playerB}
+                timeA={timeA}
+                timeB={timeB}
+                activePlayer={activePlayer}
+                winner={winner}
+                currentQ={currentQ}
+              />
+            )}
+          </main>
+
+          {/* MODAL EDYCJI BAZY PYTAN */}
+          {showQuestionManager && (
+            <QuestionManagerModal
+              questions={questions}
+              setQuestions={setQuestions}
+              onClose={() => setShowQuestionManager(false)}
+            />
+          )}
+        </div>
+      );
+    }
+
+    // ==========================================
+    // 1. WIDOK GŁÓWNY (PROJEKTOR / WIDOWNIA)
+    // ==========================================
+    function ProjectorView({ playerA, playerB, timeA, timeB, activePlayer, isRunning, winner, currentQ, scoreA, scoreB }) {
+      return (
+        <div className="flex-grow flex flex-col justify-between gap-6">
+          {/* ZEGAREK GRACZY TOP BAR */}
+          <div className="grid grid-cols-2 gap-4 md:gap-8">
+            {/* Gracza A */}
+            <div className={`glass-card p-4 md:p-6 rounded-2xl border-2 transition-all duration-300 flex flex-col items-center justify-center relative overflow-hidden ${
+              activePlayer === 'A' && isRunning ? 'glow-active-a bg-blue-950/40' : 'border-slate-800'
+            }`}>
+              <div className="flex items-center justify-between w-full mb-2">
+                <span className="text-sm md:text-xl font-bold text-blue-400 uppercase tracking-wider">{playerA}</span>
+                <span className="text-xs bg-blue-950 text-blue-300 border border-blue-800 px-2.5 py-0.5 rounded-full font-bold">Punkty: {scoreA}</span>
+              </div>
+              <div className={`font-mono-clock text-5xl md:text-7xl font-extrabold tracking-tight ${
+                timeA <= 5 ? 'text-red-500 animate-pulse' : activePlayer === 'A' ? 'text-blue-400' : 'text-slate-400'
+              }`}>
+                {timeA.toFixed(1)}s
+              </div>
+              {activePlayer === 'A' && isRunning && (
+                <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-blue-500 animate-pulse"></div>
+              )}
+            </div>
+
+            {/* Gracza B */}
+            <div className={`glass-card p-4 md:p-6 rounded-2xl border-2 transition-all duration-300 flex flex-col items-center justify-center relative overflow-hidden ${
+              activePlayer === 'B' && isRunning ? 'glow-active-b bg-red-950/40' : 'border-slate-800'
+            }`}>
+              <div className="flex items-center justify-between w-full mb-2">
+                <span className="text-sm md:text-xl font-bold text-red-400 uppercase tracking-wider">{playerB}</span>
+                <span className="text-xs bg-red-950 text-red-300 border border-red-800 px-2.5 py-0.5 rounded-full font-bold">Punkty: {scoreB}</span>
+              </div>
+              <div className={`font-mono-clock text-5xl md:text-7xl font-extrabold tracking-tight ${
+                timeB <= 5 ? 'text-red-500 animate-pulse' : activePlayer === 'B' ? 'text-red-400' : 'text-slate-400'
+              }`}>
+                {timeB.toFixed(1)}s
+              </div>
+              {activePlayer === 'B' && isRunning && (
+                <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-red-500 animate-pulse"></div>
+              )}
+            </div>
+          </div>
+
+          {/* GŁÓWNY EKRAN PREZENTACJI PREPARATU / STRUKTURY */}
+          <div className="flex-grow glass-card rounded-3xl p-4 md:p-8 border border-slate-800 flex flex-col items-center justify-center relative min-h-[400px]">
+            {winner ? (
+              <div className="text-center p-8 animate-bounce">
+                <div className="inline-block p-4 bg-amber-500/20 rounded-full border border-amber-500/40 mb-4">
+                  <i className="fa-solid fa-trophy text-6xl text-amber-400"></i>
+                </div>
+                <h1 className="text-4xl md:text-6xl font-black text-white mb-2">
+                  WYGRYWA {winner === 'A' ? playerA : playerB}!
+                </h1>
+                <p className="text-slate-400 text-lg">Przeciwnikowi skończył się czas!</p>
+              </div>
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center">
+                {/* Badges z kategią i szpilką */}
+                <div className="flex flex-wrap items-center justify-between w-full max-w-3xl mb-4 gap-2">
+                  <span className="bg-slate-800 text-slate-300 px-4 py-1.5 rounded-xl font-medium text-sm border border-slate-700">
+                    Kategoria: <strong className="text-blue-400">{currentQ.category}</strong>
+                  </span>
+                  <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 px-4 py-1.5 rounded-xl font-bold text-sm flex items-center gap-2">
+                    <i className="fa-solid fa-map-pin"></i> SZPILKA: #{currentQ.pinNumber}
+                  </span>
+                </div>
+
+                {/* Obrazek Anatomiczny */}
+                <div className="relative max-w-3xl w-full max-h-[50vh] rounded-2xl overflow-hidden border-2 border-slate-700 shadow-2xl bg-black flex items-center justify-center">
+                  <img
+                    src={currentQ.imageUrl}
+                    alt="Struktura Anatomiczna"
+                    className="w-full h-full object-contain max-h-[50vh]"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = 'https://via.placeholder.com/800x600/111827/ffffff?text=Brak+Obrazu+Anatomicznego';
+                    }}
+                  />
+                  
+                  {/* Pin Overlay Badge na środku / boku obrazka */}
+                  <div className="absolute top-4 left-4 bg-red-600 text-white font-extrabold text-xl px-4 py-2 rounded-2xl shadow-xl border-2 border-white/50 flex items-center gap-2 animate-pulse">
+                    <i className="fa-solid fa-crosshairs"></i> #{currentQ.pinNumber}
+                  </div>
+                </div>
+
+                {/* Opis Pomocniczy / Podpowiedź (Opcjonalnie) */}
+                {currentQ.questionText && (
+                  <p className="mt-4 text-center text-slate-300 text-base md:text-lg max-w-2xl bg-slate-900/60 p-3 rounded-xl border border-slate-800">
+                    "{currentQ.questionText}"
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // ==========================================
+    // 2. PANEL PROWADZĄCEGO / ARBITRA (TABLET)
+    // ==========================================
+    function HostView({
+      playerA, playerB, setPlayerA, setPlayerB,
+      timeA, timeB, activePlayer, isRunning, winner, currentQ,
+      scoreA, scoreB, initialTime, setInitialTime,
+      handleToggleRun, handleCorrect, handlePass, handleResetGame,
+      setShowQuestionManager, currentQuestionIndex, totalQuestions
+    }) {
+      return (
+        <div className="flex-grow flex flex-col gap-4 max-w-5xl mx-auto w-full">
+          {/* USTAWIENIA MECZU I STEROWANIE PAUZĄ */}
+          <div className="glass-card p-4 rounded-2xl border border-slate-800 flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleToggleRun}
+                disabled={winner}
+                className={`px-6 py-3 rounded-xl font-extrabold text-base md:text-lg transition shadow-lg flex items-center gap-2 ${
+                  isRunning
+                    ? 'bg-amber-600 hover:bg-amber-500 text-white shadow-amber-900/30'
+                    : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/30'
+                }`}
+              >
+                <i className={`fa-solid ${isRunning ? 'fa-pause' : 'fa-play'}`}></i>
+                {isRunning ? 'PAUZA (S)' : 'START BITWY (S)'}
+              </button>
+
+              <button
+                onClick={handleResetGame}
+                className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold px-4 py-3 rounded-xl text-sm transition border border-slate-700"
+                title="Resetuj zegary i punkty"
+              >
+                <i className="fa-solid fa-rotate-right"></i> Reset
+              </button>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setShowQuestionManager(true)}
+                className="bg-blue-900/40 hover:bg-blue-900/70 text-blue-300 border border-blue-700/50 px-4 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition"
+              >
+                <i className="fa-solid fa-database"></i> Baza Pytań ({currentQuestionIndex + 1}/{totalQuestions})
+              </button>
+            </div>
+          </div>
+
+          {/* KARTY DANYCH GRACZY Z EDYCJĄ NAZW */}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Gracz A */}
+            <div className={`glass-card p-4 rounded-2xl border-2 ${activePlayer === 'A' ? 'border-blue-500 bg-blue-950/20' : 'border-slate-800'}`}>
+              <div className="flex justify-between items-center mb-2">
+                <input
+                  type="text"
+                  value={playerA}
+                  onChange={(e) => setPlayerA(e.target.value)}
+                  className="bg-slate-900 border border-slate-700 text-blue-400 font-bold text-sm md:text-base px-2 py-1 rounded-lg w-2/3"
+                />
+                <span className="text-xs font-mono bg-blue-900/60 text-blue-300 px-2 py-1 rounded-md">Punkty: {scoreA}</span>
+              </div>
+              <div className="font-mono-clock text-4xl font-extrabold text-blue-400">
+                {timeA.toFixed(1)}s
+              </div>
+            </div>
+
+            {/* Gracz B */}
+            <div className={`glass-card p-4 rounded-2xl border-2 ${activePlayer === 'B' ? 'border-red-500 bg-red-950/20' : 'border-slate-800'}`}>
+              <div className="flex justify-between items-center mb-2">
+                <input
+                  type="text"
+                  value={playerB}
+                  onChange={(e) => setPlayerB(e.target.value)}
+                  className="bg-slate-900 border border-slate-700 text-red-400 font-bold text-sm md:text-base px-2 py-1 rounded-lg w-2/3"
+                />
+                <span className="text-xs font-mono bg-red-900/60 text-red-300 px-2 py-1 rounded-md">Punkty: {scoreB}</span>
+              </div>
+              <div className="font-mono-clock text-4xl font-extrabold text-red-400">
+                {timeB.toFixed(1)}s
+              </div>
+            </div>
+          </div>
+
+          {/* POKÓJ ODPOWIEDZI DLA ARBITRA (KLUCZOWY ELEMENT) */}
+          <div className="glass-card rounded-3xl p-6 border-2 border-amber-500/30 bg-slate-900/90 flex flex-col md:flex-row gap-6 items-center justify-between shadow-2xl">
+            {/* Podgląd mały obrazka */}
+            <div className="w-full md:w-1/3 aspect-video bg-black rounded-2xl overflow-hidden border border-slate-700 relative">
+              <img src={currentQ.imageUrl} alt="Podgląd" className="w-full h-full object-contain" />
+              <div className="absolute top-2 left-2 bg-amber-500 text-black font-extrabold text-xs px-2 py-1 rounded-md">
+                SZPILKA #{currentQ.pinNumber}
+              </div>
+            </div>
+
+            {/* Odpowiedź po polsku i po łacinie */}
+            <div className="w-full md:w-2/3 flex flex-col justify-center space-y-3">
+              <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                Kategoria: {currentQ.category}
+              </div>
+
+              <div>
+                <span className="text-xs font-bold text-emerald-400 uppercase tracking-wide block">Nazwa Polska:</span>
+                <div className="text-2xl md:text-3xl font-black text-white bg-slate-950 px-4 py-2 rounded-xl border border-slate-800 text-emerald-300">
+                  {currentQ.answerPl}
+                </div>
+              </div>
+
+              <div>
+                <span className="text-xs font-bold text-amber-400 uppercase tracking-wide block">Nazwa Łacińska:</span>
+                <div className="text-xl md:text-2xl font-bold text-amber-200 italic bg-slate-950 px-4 py-2 rounded-xl border border-slate-800">
+                  {currentQ.answerLat || 'Brak nazwy łacińskiej'}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* PRZYCISKI AKCJI (DOBRZE / PAS) */}
+          <div className="grid grid-cols-2 gap-4 mt-2">
+            <button
+              onClick={handleCorrect}
+              disabled={!isRunning || winner}
+              className="py-6 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 disabled:opacity-40 text-white font-extrabold text-xl md:text-2xl rounded-2xl shadow-xl shadow-emerald-950/50 flex flex-col items-center justify-center gap-1 transition border-t-2 border-emerald-400"
+            >
+              <div className="flex items-center gap-2">
+                <i className="fa-solid fa-circle-check text-3xl"></i> DOBRZE
+              </div>
+              <span className="text-xs font-normal text-emerald-200">[ Space / Enter ]</span>
+            </button>
+
+            <button
+              onClick={handlePass}
+              disabled={!isRunning || winner}
+              className="py-6 bg-rose-600 hover:bg-rose-500 active:bg-rose-700 disabled:opacity-40 text-white font-extrabold text-xl md:text-2xl rounded-2xl shadow-xl shadow-rose-950/50 flex flex-col items-center justify-center gap-1 transition border-t-2 border-rose-400"
+            >
+              <div className="flex items-center gap-2">
+                <i className="fa-solid fa-forward text-3xl"></i> PAS
+              </div>
+              <span className="text-xs font-normal text-rose-200">[ Klawisz P ]</span>
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // ==========================================
+    // 3. WIDOK GRACZA (TABLET ZAWODNIKA)
+    // ==========================================
+    function PlayerView({ playerA, playerB, timeA, timeB, activePlayer, winner, currentQ }) {
+      return (
+        <div className="flex-grow flex flex-col justify-between gap-6">
+          {/* ZEGAREK DLA TABLETU */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className={`glass-card p-4 rounded-2xl text-center border-2 ${activePlayer === 'A' ? 'border-blue-500 bg-blue-950/30' : 'border-slate-800'}`}>
+              <div className="text-xs font-bold text-blue-400">{playerA}</div>
+              <div className="font-mono-clock text-4xl md:text-5xl font-extrabold text-blue-400">{timeA.toFixed(1)}s</div>
+            </div>
+
+            <div className={`glass-card p-4 rounded-2xl text-center border-2 ${activePlayer === 'B' ? 'border-red-500 bg-red-950/30' : 'border-slate-800'}`}>
+              <div className="text-xs font-bold text-red-400">{playerB}</div>
+              <div className="font-mono-clock text-4xl md:text-5xl font-extrabold text-red-400">{timeB.toFixed(1)}s</div>
+            </div>
+          </div>
+
+          {/* CZYSTY OBRAZEK DLA GRACZA BEZ ODPOWIEDZI */}
+          <div className="flex-grow glass-card rounded-3xl p-4 border border-slate-800 flex flex-col items-center justify-center relative min-h-[350px]">
+            <div className="absolute top-4 left-4 bg-amber-500 text-black font-extrabold text-lg px-3 py-1.5 rounded-xl flex items-center gap-2">
+              <i className="fa-solid fa-map-pin"></i> SZPILKA #{currentQ.pinNumber}
+            </div>
+
+            <div className="max-w-2xl w-full max-h-[55vh] rounded-2xl overflow-hidden border border-slate-700 bg-black flex items-center justify-center">
+              <img
+                src={currentQ.imageUrl}
+                alt="Struktura do rozpoznania"
+                className="w-full h-full object-contain max-h-[55vh]"
+              />
+            </div>
+            
+            <p className="text-center text-slate-400 text-sm mt-3 font-medium">
+              Odpowiadaj ustnie do mikrofonu!
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    // ==========================================
+    // MODAL EDYCJI BAZY PYTAŃ (QUESTION MANAGER)
+    // ==========================================
+    function QuestionManagerModal({ questions, setQuestions, onClose }) {
+      const [newCat, setNewCat] = useState('');
+      const [newPin, setNewPin] = useState('');
+      const [newPl, setNewPl] = useState('');
+      const [newLat, setNewLat] = useState('');
+      const [newImg, setNewImg] = useState('');
+      const [newText, setNewText] = useState('');
+
+      const handleAdd = (e) => {
+        e.preventDefault();
+        if (!newPl || !newImg) return;
+
+        const newItem = {
+          id: Date.now().toString(),
+          category: newCat || 'Ogólna',
+          pinNumber: newPin || '01',
+          answerPl: newPl,
+          answerLat: newLat,
+          imageUrl: newImg,
+          questionText: newText
+        };
+
+        setQuestions([...questions, newItem]);
+        // Reset form
+        setNewPin('');
+        setNewPl('');
+        setNewLat('');
+        setNewImg('');
+        setNewText('');
+      };
+
+      const handleDelete = (id) => {
+        setQuestions(questions.filter(q => q.id !== id));
+      };
+
+      return (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="glass-card bg-slate-900 border border-slate-700 rounded-3xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+            <div className="p-4 bg-slate-800 border-b border-slate-700 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <i className="fa-solid fa-list-check text-blue-400"></i> Baza Struktur Anatomicznych
+              </h3>
+              <button onClick={onClose} className="text-slate-400 hover:text-white text-xl px-2">
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto space-y-6">
+              {/* Formularz Dodawania Nowej Szpilki */}
+              <form onSubmit={handleAdd} className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-4">
+                <h4 className="text-sm font-bold text-amber-400 uppercase tracking-wider">Dodaj Nowe Pytanie / Szpilkę</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <input
+                    type="text"
+                    placeholder="Kategoria (np. OUN)"
+                    value={newCat}
+                    onChange={e => setNewCat(e.target.value)}
+                    className="bg-slate-900 border border-slate-700 p-2.5 rounded-xl text-sm"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Nr Szpilki (np. 14)"
+                    value={newPin}
+                    onChange={e => setNewPin(e.target.value)}
+                    className="bg-slate-900 border border-slate-700 p-2.5 rounded-xl text-sm"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Nazwa Polska (Wymagane)"
+                    value={newPl}
+                    onChange={e => setNewPl(e.target.value)}
+                    className="bg-slate-900 border border-slate-700 p-2.5 rounded-xl text-sm"
+                    required
+                  />
+                  <input
+                    type="text"
+                    placeholder="Nazwa Łacińska"
+                    value={newLat}
+                    onChange={e => setNewLat(e.target.value)}
+                    className="bg-slate-900 border border-slate-700 p-2.5 rounded-xl text-sm"
+                  />
+                  <input
+                    type="url"
+                    placeholder="Link URL do Obrazka (Wymagane)"
+                    value={newImg}
+                    onChange={e => setNewImg(e.target.value)}
+                    className="bg-slate-900 border border-slate-700 p-2.5 rounded-xl text-sm md:col-span-2"
+                    required
+                  />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Dodatkowy opis/podpowiedź (opcjonalnie)"
+                  value={newText}
+                  onChange={e => setNewText(e.target.value)}
+                  className="bg-slate-900 border border-slate-700 p-2.5 rounded-xl text-sm w-full"
+                />
+                <button type="submit" className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition">
+                  <i className="fa-solid fa-plus"></i> Dodaj Szpilkę
+                </button>
+              </form>
+
+              {/* Lista Istniejących Pytań */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Lista Pytań w Bazie ({questions.length})</h4>
+                {questions.map((q, idx) => (
+                  <div key={q.id} className="bg-slate-950 p-3 rounded-xl border border-slate-800 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <img src={q.imageUrl} alt="" className="w-12 h-12 object-cover rounded-lg bg-black" />
+                      <div>
+                        <div className="font-bold text-white text-sm">{q.answerPl} <span className="text-amber-400 text-xs italic">({q.answerLat})</span></div>
+                        <div className="text-xs text-slate-400">Kat: {q.category} | Szpilka #{q.pinNumber}</div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleDelete(q.id)}
+                      className="text-rose-400 hover:text-rose-300 p-2 rounded-lg bg-rose-950/40 border border-rose-900"
+                    >
+                      <i className="fa-solid fa-trash-can"></i>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Renderowanie aplikacji React
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
