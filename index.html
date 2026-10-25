@@ -111,7 +111,7 @@
       padding: 8px 24px;
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: center; /* Wycentrowanie licznika */
       transition: all 0.3s ease;
     }
 
@@ -147,7 +147,7 @@
     <!-- ZINTEGROWANA DOLNA KONSOLA TV -->
     <div class="tv-console-container">
       
-      <!-- Górny Pas: Paweł | KATEGORIA | Jarosław -->
+      <!-- Górny Pas: JAN | KATEGORIA | WOJCIECH -->
       <div class="tv-top-bar">
         <div class="player-name-box player-name-left">
           <span id="proj-name-a">JAN</span>
@@ -162,16 +162,14 @@
         </div>
       </div>
 
-      <!-- Dolny Pas: Zegary Graczy -->
+      <!-- Dolny Pas: Zegary Graczy (Wycentrowane) -->
       <div class="tv-bottom-bar">
         <div id="box-player-a" class="timer-block">
           <span id="proj-time-a" class="text-7xl md:text-8xl font-teko font-bold text-white tracking-wider">45</span>
-          <span id="badge-a" class="text-yellow-400 font-extrabold animate-pulse text-sm hidden">TWÓJ CZAS</span>
         </div>
 
-        <div id="box-player-b" class="timer-block flex-row-reverse">
+        <div id="box-player-b" class="timer-block">
           <span id="proj-time-b" class="text-7xl md:text-8xl font-teko font-bold text-white tracking-wider">45</span>
-          <span id="badge-b" class="text-yellow-400 font-extrabold animate-pulse text-sm hidden">TWÓJ CZAS</span>
         </div>
       </div>
 
@@ -244,190 +242,3 @@
 
     let state = {
       view: 'PROJEKTOR',
-      playerA: 'JAN',
-      playerB: 'WOJCIECH',
-      timeA: 45,
-      timeB: 45,
-      activePlayer: 'A',
-      isRunning: false,
-      qIndex: 0,
-      showCorrectAnswer: false,
-      lastAnswerText: ''
-    };
-
-    let audioCtx = null;
-
-    function initAudio() {
-      if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
-    }
-
-    function playSound(type) {
-      try {
-        initAudio();
-        if (!audioCtx) return;
-
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-
-        if (type === 'CORRECT') {
-          osc.frequency.setValueAtTime(523.25, audioCtx.currentTime);
-          osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1);
-          gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-          osc.start();
-          osc.stop(audioCtx.currentTime + 0.3);
-        } else if (type === 'PASS') {
-          osc.type = 'sawtooth';
-          osc.frequency.setValueAtTime(180, audioCtx.currentTime);
-          osc.frequency.setValueAtTime(110, audioCtx.currentTime + 0.15);
-          gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
-          osc.start();
-          osc.stop(audioCtx.currentTime + 0.35);
-        }
-      } catch(e) {}
-    }
-
-    const channel = new BroadcastChannel('the_floor_anatomy_channel');
-
-    channel.onmessage = (event) => {
-      if (event.data && event.data.type === 'SYNC') {
-        state = { ...state, ...event.data.payload };
-        updateUI();
-      } else if (event.data && event.data.type === 'SOUND') {
-        playSound(event.data.payload);
-      }
-    };
-
-    function broadcastState() {
-      channel.postMessage({ type: 'SYNC', payload: state });
-      updateUI();
-    }
-
-    function broadcastSound(soundType) {
-      playSound(soundType);
-      channel.postMessage({ type: 'SOUND', payload: soundType });
-    }
-
-    setInterval(() => {
-      if (state.isRunning && !state.showCorrectAnswer) {
-        if (state.activePlayer === 'A') {
-          if (state.timeA > 0) {
-            state.timeA--;
-            broadcastState();
-          } else {
-            state.isRunning = false;
-            broadcastSound('PASS');
-            broadcastState();
-          }
-        } else {
-          if (state.timeB > 0) {
-            state.timeB--;
-            broadcastState();
-          } else {
-            state.isRunning = false;
-            broadcastSound('PASS');
-            broadcastState();
-          }
-        }
-      }
-    }, 1000);
-
-    function setView(viewName) {
-      initAudio();
-      state.view = viewName;
-      
-      const projEl = document.getElementById('view-projektor');
-      const hostEl = document.getElementById('view-host');
-      
-      if (projEl && hostEl) {
-        if (viewName === 'PROJEKTOR') {
-          projEl.classList.remove('hidden');
-          hostEl.classList.add('hidden');
-        } else {
-          projEl.classList.add('hidden');
-          hostEl.classList.remove('hidden');
-        }
-      }
-
-      const btnProj = document.getElementById('btn-view-proj');
-      const btnHost = document.getElementById('btn-view-host');
-
-      if (btnProj && btnHost) {
-        btnProj.className = viewName === 'PROJEKTOR' 
-          ? 'px-3 py-1.5 rounded font-bold bg-yellow-500 text-black cursor-pointer' 
-          : 'px-3 py-1.5 rounded font-bold text-gray-300 hover:text-white cursor-pointer';
-        
-        btnHost.className = viewName === 'HOST' 
-          ? 'px-3 py-1.5 rounded font-bold bg-yellow-500 text-black cursor-pointer' 
-          : 'px-3 py-1.5 rounded font-bold text-gray-300 hover:text-white cursor-pointer';
-      }
-    }
-
-    // Akcja po kliknięciu DOBRZE
-    function onCorrect() {
-      initAudio();
-      broadcastSound('CORRECT');
-
-      const currentQ = QUESTIONS[state.qIndex];
-      state.showCorrectAnswer = true;
-      state.lastAnswerText = currentQ.answer;
-      broadcastState();
-
-      // Animacja zielonego błysku i przejście do kolejnego pytania
-      setTimeout(() => {
-        state.showCorrectAnswer = false;
-        state.activePlayer = state.activePlayer === 'A' ? 'B' : 'A';
-        state.qIndex = (state.qIndex + 1) % QUESTIONS.length;
-        state.isRunning = true;
-        broadcastState();
-      }, 1200);
-    }
-
-    function onPass() {
-      initAudio();
-      broadcastSound('PASS');
-      state.qIndex = (state.qIndex + 1) % QUESTIONS.length;
-      broadcastState();
-    }
-
-    function toggleRun() {
-      initAudio();
-      state.isRunning = !state.isRunning;
-      broadcastState();
-    }
-
-    function updatePlayersConfig() {
-      const inpA = document.getElementById('input-name-a');
-      const inpB = document.getElementById('input-name-b');
-      if (inpA && inpB) {
-        state.playerA = inpA.value.toUpperCase() || 'JAN';
-        state.playerB = inpB.value.toUpperCase() || 'WOJCIECH';
-        broadcastState();
-      }
-    }
-
-    function resetTimers() {
-      state.timeA = 45;
-      state.timeB = 45;
-      state.isRunning = false;
-      broadcastState();
-    }
-
-    window.addEventListener('keydown', (e) => {
-      if (state.view === 'HOST') {
-        if (e.code === 'Space') {
-          e.preventDefault();
-          onCorrect();
-        } else if (e.code === 'KeyP') {
-          onPass();
-        }
-      }
-    });
-
-    function
