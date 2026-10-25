@@ -60,7 +60,7 @@
 </head>
 <body class="bg-slate-950 text-white min-h-screen flex flex-col justify-between">
 
-  <!-- PRZEŁĄCZNIK WIDOKU W ROGU EKRANU -->
+  <!-- PRZEŁĄCZNIK WIDOKU -->
   <div class="fixed top-2 right-2 z-50 bg-slate-900/90 p-1.5 rounded-lg border border-slate-700 text-xs flex gap-2">
     <button id="btn-view-proj" onclick="setView('PROJEKTOR')" class="px-3 py-1.5 rounded font-bold bg-yellow-500 text-black">
       Projektor (Widownia)
@@ -85,7 +85,6 @@
       </div>
 
       <div class="w-full grid grid-cols-2 gap-4 -mt-3 pt-2 px-2">
-        <!-- ZAWODNIK A -->
         <div id="box-player-a" class="timer-box p-4 rounded-l-2xl relative flex items-center justify-between">
           <div class="trapezoid-left absolute -top-4 left-0 px-6 py-1 border-t-2 border-yellow-400">
             <span id="proj-name-a" class="font-extrabold text-lg text-white tracking-widest">JAN</span>
@@ -96,7 +95,6 @@
           <span id="badge-a" class="text-yellow-400 font-bold animate-pulse text-sm hidden">RUCH</span>
         </div>
 
-        <!-- ZAWODNIK B -->
         <div id="box-player-b" class="timer-box p-4 rounded-r-2xl relative flex items-center justify-between flex-row-reverse">
           <div class="trapezoid-right absolute -top-4 right-0 px-6 py-1 border-t-2 border-yellow-400">
             <span id="proj-name-b" class="font-extrabold text-lg text-white tracking-widest">WOJCIECH</span>
@@ -111,19 +109,17 @@
 
   </div>
 
-  <!-- 2. WIDOK PROWADZĄCEGO (PANEL ARBITRA + EDYTOR) -->
-  <div id="view-host" class="flex-1 p-6 max-w-2xl mx-auto w-full flex-col justify-between hidden">
+  <!-- 2. WIDOK PROWADZĄCEGO -->
+  <div id="view-host" class="flex-1 p-6 max-w-2xl mx-auto w-full flex flex-col justify-between hidden">
     <div>
       <h1 class="text-xl font-bold text-yellow-400 mb-4 text-center border-b border-slate-800 pb-2">PANEL ARBITRA / PROWADZĄCEGO</h1>
       
-      <!-- Podgląd odpowiedzi -->
       <div class="bg-slate-900 border-2 border-yellow-500/50 rounded-xl p-4 mb-4 text-center">
         <span class="text-xs text-gray-400 uppercase tracking-widest block mb-1">Poprawna Odpowiedź:</span>
         <div id="host-answer" class="text-2xl font-black text-green-400">---</div>
         <span id="host-category" class="text-xs text-yellow-500 mt-2 block">---</span>
       </div>
 
-      <!-- Stan czasowy zawodników -->
       <div class="grid grid-cols-2 gap-4 mb-4 text-center">
         <div id="host-card-a" class="p-4 rounded-lg border bg-slate-900 border-slate-800">
           <div id="host-name-a" class="text-sm font-bold">JAN</div>
@@ -135,15 +131,14 @@
         </div>
       </div>
 
-      <!-- Opcje konfiguracji pojedynku -->
       <div class="bg-slate-900/80 p-3 rounded-lg border border-slate-800 mb-4 grid grid-cols-2 gap-2 text-xs">
         <div>
           <label class="text-gray-400 block mb-1">Gracz A:</label>
-          <input type="text" id="input-name-a" value="JAN" onchange="updatePlayersConfig()" class="w-full bg-slate-950 border border-slate-700 p-1.5 rounded text-white font-bold">
+          <input type="text" id="input-name-a" value="JAN" oninput="updatePlayersConfig()" class="w-full bg-slate-950 border border-slate-700 p-1.5 rounded text-white font-bold">
         </div>
         <div>
           <label class="text-gray-400 block mb-1">Gracz B:</label>
-          <input type="text" id="input-name-b" value="WOJCIECH" onchange="updatePlayersConfig()" class="w-full bg-slate-950 border border-slate-700 p-1.5 rounded text-white font-bold">
+          <input type="text" id="input-name-b" value="WOJCIECH" oninput="updatePlayersConfig()" class="w-full bg-slate-950 border border-slate-700 p-1.5 rounded text-white font-bold">
         </div>
         <div class="col-span-2 flex gap-2 mt-1">
           <button onclick="resetTimers()" class="w-full bg-slate-800 hover:bg-slate-700 text-gray-200 py-1.5 rounded font-semibold">
@@ -155,11 +150,213 @@
 
     <!-- Przyciski Akcji -->
     <div class="space-y-3">
-      <button onclick="handleCorrect()" class="w-full py-5 bg-green-600 hover:bg-green-500 active:scale-95 text-white font-black text-2xl rounded-xl shadow-lg transition">
+      <button onclick="onCorrect()" class="w-full py-5 bg-green-600 hover:bg-green-500 active:scale-95 text-white font-black text-2xl rounded-xl shadow-lg transition cursor-pointer">
         ✓ DOBRZE [SPACE]
       </button>
-      <button onclick="handlePass()" class="w-full py-4 bg-amber-600 hover:bg-amber-500 active:scale-95 text-white font-bold text-xl rounded-xl shadow transition">
+      <button onclick="onPass()" class="w-full py-4 bg-amber-600 hover:bg-amber-500 active:scale-95 text-white font-bold text-xl rounded-xl shadow transition cursor-pointer">
         PAS [P]
       </button>
-      <button id="btn-toggle-run" onclick="toggleRun()" class="w-full py-3 bg-blue-600 text-white font-semibold rounded-lg">
-        START / PAUZA ZEG
+      <button id="btn-toggle-run" onclick="toggleRun()" class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg cursor-pointer">
+        START / PAUZA ZEGARA
+      </button>
+    </div>
+  </div>
+
+  <script>
+    const QUESTIONS = [
+      { id: 1, category: "UKŁAD KRĄŻENIA", image: "https://images.unsplash.com/photo-1559757175-5700dde675bc?auto=format&fit=crop&w=1000&q=80", answer: "Serce / Cor" },
+      { id: 2, category: "NEUROANATOMIA", image: "https://images.unsplash.com/photo-1559757148-5c350d0d3c56?auto=format&fit=crop&w=1000&q=80", answer: "Mózgowie / Encephalon" },
+      { id: 3, category: "OSTEOLOGIA", image: "https://images.unsplash.com/photo-1530210124550-912dc1381cb8?auto=format&fit=crop&w=1000&q=80", answer: "Kościec / Systema skeletale" }
+    ];
+
+    let state = {
+      view: 'PROJEKTOR',
+      playerA: 'JAN',
+      playerB: 'WOJCIECH',
+      timeA: 45,
+      timeB: 45,
+      activePlayer: 'A',
+      isRunning: false,
+      qIndex: 0
+    };
+
+    let audioCtx = null;
+
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    function playSound(type) {
+      try {
+        initAudio();
+        if (!audioCtx) return;
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        if (type === 'CORRECT') {
+          osc.frequency.setValueAtTime(523.25, audioCtx.currentTime);
+          osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1);
+          gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.3);
+        } else if (type === 'PASS') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(180, audioCtx.currentTime);
+          osc.frequency.setValueAtTime(110, audioCtx.currentTime + 0.15);
+          gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.35);
+        }
+      } catch(e) {}
+    }
+
+    const channel = new BroadcastChannel('the_floor_anatomy_channel');
+
+    channel.onmessage = (event) => {
+      if (event.data && event.data.type === 'SYNC') {
+        state = { ...state, ...event.data.payload };
+        updateUI();
+      } else if (event.data && event.data.type === 'SOUND') {
+        playSound(event.data.payload);
+      }
+    };
+
+    function broadcastState() {
+      channel.postMessage({ type: 'SYNC', payload: state });
+      updateUI();
+    }
+
+    function broadcastSound(soundType) {
+      playSound(soundType);
+      channel.postMessage({ type: 'SOUND', payload: soundType });
+    }
+
+    setInterval(() => {
+      if (state.isRunning) {
+        if (state.activePlayer === 'A') {
+          if (state.timeA > 0) {
+            state.timeA--;
+            broadcastState();
+          } else {
+            state.isRunning = false;
+            broadcastSound('PASS');
+            broadcastState();
+          }
+        } else {
+          if (state.timeB > 0) {
+            state.timeB--;
+            broadcastState();
+          } else {
+            state.isRunning = false;
+            broadcastSound('PASS');
+            broadcastState();
+          }
+        }
+      }
+    }, 1000);
+
+    function setView(viewName) {
+      initAudio();
+      state.view = viewName;
+      document.getElementById('view-projektor').classList.toggle('hidden', viewName !== 'PROJEKTOR');
+      document.getElementById('view-host').classList.toggle('hidden', viewName !== 'HOST');
+      
+      document.getElementById('btn-view-proj').className = viewName === 'PROJEKTOR' 
+        ? 'px-3 py-1.5 rounded font-bold bg-yellow-500 text-black' 
+        : 'px-3 py-1.5 rounded font-bold text-gray-300 hover:text-white';
+      
+      document.getElementById('btn-view-host').className = viewName === 'HOST' 
+        ? 'px-3 py-1.5 rounded font-bold bg-yellow-500 text-black' 
+        : 'px-3 py-1.5 rounded font-bold text-gray-300 hover:text-white';
+    }
+
+    function onCorrect() {
+      initAudio();
+      broadcastSound('CORRECT');
+      state.activePlayer = state.activePlayer === 'A' ? 'B' : 'A';
+      state.qIndex = (state.qIndex + 1) % QUESTIONS.length;
+      state.isRunning = true;
+      broadcastState();
+    }
+
+    function onPass() {
+      initAudio();
+      broadcastSound('PASS');
+      state.qIndex = (state.qIndex + 1) % QUESTIONS.length;
+      broadcastState();
+    }
+
+    function toggleRun() {
+      initAudio();
+      state.isRunning = !state.isRunning;
+      broadcastState();
+    }
+
+    function updatePlayersConfig() {
+      state.playerA = document.getElementById('input-name-a').value.toUpperCase() || 'JAN';
+      state.playerB = document.getElementById('input-name-b').value.toUpperCase() || 'WOJCIECH';
+      broadcastState();
+    }
+
+    function resetTimers() {
+      state.timeA = 45;
+      state.timeB = 45;
+      state.isRunning = false;
+      broadcastState();
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (state.view === 'HOST') {
+        if (e.code === 'Space') {
+          e.preventDefault();
+          onCorrect();
+        } else if (e.code === 'KeyP') {
+          onPass();
+        }
+      }
+    });
+
+    function updateUI() {
+      const q = QUESTIONS[state.qIndex];
+
+      document.getElementById('proj-img').src = q.image;
+      document.getElementById('proj-category').innerText = q.category;
+      document.getElementById('proj-name-a').innerText = state.playerA;
+      document.getElementById('proj-name-b').innerText = state.playerB;
+      document.getElementById('proj-time-a').innerText = state.timeA;
+      document.getElementById('proj-time-b').innerText = state.timeB;
+
+      const isAActive = state.activePlayer === 'A' && state.isRunning;
+      const isBActive = state.activePlayer === 'B' && state.isRunning;
+
+      document.getElementById('box-player-a').className = `timer-box p-4 rounded-l-2xl relative flex items-center justify-between ${isAActive ? 'timer-active' : ''}`;
+      document.getElementById('box-player-b').className = `timer-box p-4 rounded-r-2xl relative flex items-center justify-between flex-row-reverse ${isBActive ? 'timer-active' : ''}`;
+
+      document.getElementById('badge-a').classList.toggle('hidden', !isAActive);
+      document.getElementById('badge-b').classList.toggle('hidden', !isBActive);
+
+      document.getElementById('host-answer').innerText = q.answer;
+      document.getElementById('host-category').innerText = "KATEGORIA: " + q.category;
+      document.getElementById('host-name-a').innerText = state.playerA;
+      document.getElementById('host-name-b').innerText = state.playerB;
+      document.getElementById('host-time-a').innerText = state.timeA + "s";
+      document.getElementById('host-time-b').innerText = state.timeB + "s";
+
+      document.getElementById('host-card-a').className = `p-4 rounded-lg border ${state.activePlayer === 'A' ? 'bg-blue-950 border-yellow-400' : 'bg-slate-900 border-slate-800'}`;
+      document.getElementById('host-card-b').className = `p-4 rounded-lg border ${state.activePlayer === 'B' ? 'bg-blue-950 border-yellow-400' : 'bg-slate-900 border-slate-800'}`;
+      
+      document.getElementById('btn-toggle-run').innerText = state.isRunning ? 'PAUZA ZEGARA' : 'START / WZNOWIENIE';
+    }
+
+    updateUI();
+  </script>
+</body>
+</html>
